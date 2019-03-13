@@ -4,21 +4,34 @@ namespace PHPGithook\PHPUnit;
 
 use PHPGithookInterface\ParameterBagInterface;
 use Symfony\Component\Console\Output\OutputInterface;
+use Symfony\Component\Process\Process;
 
 abstract class PHPUnitRunner
 {
     protected function execute(OutputInterface $output, ParameterBagInterface $parameters): bool
     {
-        $exec = sprintf(
-            '%s/phpunit %s %s',
-            $parameters->get('BINDIR'),
-            $parameters->has('configurationFile') ? $parameters->get('configurationFile') : '',
-            $parameters->get('WORKINGDIR')
-        );
+        // @codeCoverageIgnoreStart
+        if (!\is_string($parameters->get('bin', ''))) {
+            throw new \RuntimeException('The parameter "bin" is not a string');
+        }
 
-        ob_start();
-        `$exec`;
+        if (!\is_string($parameters->get('configurationFile', ''))) {
+            throw new \RuntimeException('The parameter "configurationFile" is not a string');
+        }
+        // @codeCoverageIgnoreEnd
 
-        return $output->writeln(ob_get_flush());
+        $command[] = trim($parameters->get('bin', ''));
+        if ($parameters->get('configurationFile', '')) {
+            $command[] = '-c';
+            $command[] = trim($parameters->get('configurationFile', ''));
+        }
+
+        $process = new Process($command);
+        $process->run();
+
+        $output->writeln($process->getOutput());
+        $output->writeln("<error>{$process->getErrorOutput()}</error>");
+
+        return $process->isSuccessful();
     }
 }

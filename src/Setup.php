@@ -26,13 +26,35 @@ class Setup implements SetupInterface
      */
     public function createConfiguration(InputInterface $input, OutputInterface $output, ParameterBagInterface $parameters = null): array
     {
+        if (!$input->hasArgument('directory') || !\is_string($input->getArgument('directory'))) {
+            throw new \RuntimeException('Directory argument should be a key');
+        }
+
         $io = new SymfonyStyle($input, $output);
 
         $configuration = [];
-        $configuration['precommit'] = $parameters ? $parameters->get('precommit', true) : true;
-        $configuration['prepush'] = $parameters ? $parameters->get('prepush', true) : true;
-        $configuration['configurationFile'] = $parameters ? $parameters->get('configurationFile', '') : '';
+        $configuration['precommit'] = $parameters ? $parameters->get('precommit', '1') : '1';
+        $configuration['prepush'] = $parameters ? $parameters->get('prepush', '1') : '1';
 
+        $configFile = sprintf('%s/phpunit.xml', $input->getArgument('directory'));
+        if (!file_exists($configFile)) {
+            $configFile = sprintf('%s/phpunit.xml.dist', $input->getArgument('directory'));
+            if (!file_exists($configFile)) {
+                $configFile = '';
+            }
+        }
+        $configuration['configurationFile'] = $parameters ? $parameters->get('configurationFile', $configFile) : $configFile;
+
+        $binfile = sprintf('%s/vendor/bin/phpunit', $input->getArgument('directory'));
+        if (!file_exists($binfile)) {
+            $binfile = sprintf('%s/bin/phpunit', $input->getArgument('directory'));
+            if (!file_exists($binfile)) {
+                $binfile = '';
+            }
+        }
+        $configuration['bin'] = $parameters ? $parameters->get('bin', $binfile) : $binfile;
+
+        $configuration['bin'] = $io->ask('PHPUnit bin file', $configuration['bin']);
         $configuration['precommit'] = $io->ask('Run PHPUnit before creating the commit', $configuration['precommit']);
         $configuration['prepush'] = $io->ask('Run PHPUnit before pushing', $configuration['prepush']);
         $configuration['configurationFile'] = $io->ask('Path from your project to phpunit configuration file', $configuration['configurationFile']);
